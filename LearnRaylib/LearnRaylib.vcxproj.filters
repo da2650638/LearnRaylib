@@ -53,5 +53,8 @@
     <ClInclude Include="vendor\glad\include\KHR\khrplatform.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\CasicGLConfig.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

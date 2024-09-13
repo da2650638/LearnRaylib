@@ -21,5 +21,6 @@ int main() {
 		window->SwapBufferAndPollEvent();
 	}
 
+	casicGL.UnloadShaderDefault();
 	window->Shutdown();
 }
