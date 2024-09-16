@@ -17,10 +17,11 @@ int main() {
 	casicGL.Init(Window::Data.width, Window::Data.height);
 
 	while (!window->WindowShouldClose()) {
+		casicGL.ClearBackgound(CASIC_WHITE);
 		//Swap buffers and poll events
 		window->SwapBufferAndPollEvent();
 	}
 
-	casicGL.UnloadShaderDefault();
+	casicGL.Shutdown();
 	window->Shutdown();
 }

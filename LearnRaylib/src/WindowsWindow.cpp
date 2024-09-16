@@ -57,4 +57,12 @@ namespace casic706 {
 		glfwDestroyWindow(m_Window);
 		glfwTerminate();
 	}
+
+	double WindowsWindow::GetTime()
+	{
+		double time = glfwGetTime();
+		return time;
+	}
+
+
 }

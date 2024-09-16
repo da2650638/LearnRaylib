@@ -5,6 +5,7 @@
 namespace casic706 {
 
 	Window::WindowData Window::Data{};
+	Window::Time Window::time{ 0 };
 
 	Window* Window::GetWindow(const WindowData& data)
 	{

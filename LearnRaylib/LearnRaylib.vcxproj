@@ -136,6 +136,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\CasicGL.cpp" />
+    <ClCompile Include="src\CasicMath.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\Utils.cpp" />
     <ClCompile Include="src\Window.cpp" />
@@ -145,6 +146,7 @@
   <ItemGroup>
     <ClInclude Include="src\CasicGL.h" />
     <ClInclude Include="src\CasicGLConfig.h" />
+    <ClInclude Include="src\CasicMath.h" />
     <ClInclude Include="src\Utils.h" />
     <ClInclude Include="src\Window.h" />
     <ClInclude Include="src\WindowsWindow.h" />

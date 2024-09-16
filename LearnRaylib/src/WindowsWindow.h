@@ -16,6 +16,7 @@ namespace casic706 {
 		virtual bool WindowShouldClose() override;
 		virtual void SwapBufferAndPollEvent() override;
 		virtual void Shutdown() override;
+		virtual double GetTime() override;
 
 		static void ErrorCallback(int error, const char* description)
 		{

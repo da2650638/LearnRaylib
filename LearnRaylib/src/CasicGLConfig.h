@@ -86,3 +86,16 @@ typedef enum {
 
 #define CASIC_SHADER_LOC_MAP_DIFFUSE    CASIC_SHADER_LOC_MAP_ALBEDO
 #define CASIC_SHADER_LOC_MAP_SPECULAR   CASIC_SHADER_LOC_MAP_METALNESS
+
+// Primitive assembly draw modes
+#define CASIC_LINES                                0x0001      // GL_LINES
+#define CASIC_TRIANGLES                            0x0004      // GL_TRIANGLES
+#define CASIC_QUADS                                0x0007      // GL_QUADS
+
+#define CASIC_DEFAULT_BATCH_DRAWCALLS           256      // Default number of batch draw calls (by state changes: mode, texture)
+#define CASIC_DEFAULT_BATCH_BUFFERS               1      // Default number of batch buffers (multi-buffering)
+#define CASIC_DEFAULT_BATCH_BUFFER_ELEMENTS    8192
+#define CASIC_DEFAULT_BATCH_MAX_TEXTURE_UNITS     4  
+
+#define CASIC_WHITE {255, 255, 255, 255}
+#define CASIC_RED {255, 0, 0, 255}
