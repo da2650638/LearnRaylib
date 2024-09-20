@@ -59,17 +59,27 @@ namespace casic706 {
 		// Drawing-releated functions
 		void ClearBackgound(Color color);
 		void BeginDrawing(Window* window);
-		void EndDrawing();
+		void EndDrawing(Window* window);
 		void LoadIdentity();
 		void DrawRenderBatchActive();
 		void DrawRenderBatch(RenderBatch* batch);
+		void BeginDrawMode(int mode);
+		void EndDrawMode();
+		bool CheckRenderBatchLimit(int count);
 
 		// OpenGL function wrappers
 		void CasicClearColor(unsigned char r, unsigned char g, unsigned char b, unsigned char a);
 		void CasicClearScreenBuffers();
+
+		// Vertex level operations
+		void Color4ub(unsigned char r, unsigned char g, unsigned char b, unsigned char a);
+		void Vertex3f(float x, float y, float z);
+
+		// Basic geometric 3D shapes drawing functions
+		void DrawTriangle3D(Vector3 v1, Vector3 v2, Vector3 v3, Color color);
 	private:
 		unsigned int m_DefaultTextureId;
-		unsigned int m_ActiveTextureId[CASIC_DEFAULT_BATCH_MAX_TEXTURE_UNITS];
+		unsigned int m_ActiveTextureId[CASIC_DEFAULT_BATCH_MAX_TEXTURE_UNITS] = { 0 };
 		unsigned int m_CurrentShaderId;
         unsigned int m_DefaultShaderId;
         unsigned int m_DefaultVShaderId;
@@ -77,6 +87,9 @@ namespace casic706 {
         int* m_DefaultShaderLocs;
 		int* m_CurrentShaderLocs;
 
+		Color m_Color;
+		float m_Texcoordx, m_Texcoordy;
+		float m_Normalx, m_Normaly, m_Normalz;
 		int m_VertexCounter;                  // Current active render batch vertex counter (generic, used for all batches)
 		RenderBatch		m_DefaultBatch;
 		RenderBatch*	m_CurrentBatch;

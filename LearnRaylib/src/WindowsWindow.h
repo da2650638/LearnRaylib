@@ -15,6 +15,8 @@ namespace casic706 {
 		virtual bool Init() override;
 		virtual bool WindowShouldClose() override;
 		virtual void SwapBufferAndPollEvent() override;
+		virtual void SwapBuffer() override;
+		virtual void PollEvent() override;
 		virtual void Shutdown() override;
 		virtual double GetTime() override;
 

@@ -26,7 +26,9 @@ namespace casic706 {
 
 		virtual bool Init() = 0;
 		virtual bool WindowShouldClose() = 0;
-		virtual void SwapBufferAndPollEvent() = 0;;
+		virtual void SwapBufferAndPollEvent() = 0;
+		virtual void SwapBuffer() = 0;
+		virtual void PollEvent() = 0;
 		virtual void Shutdown() = 0;
 		virtual double GetTime() = 0;
 

@@ -24,6 +24,8 @@ namespace casic706 {
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
 		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+		// Enable opengl debug mode
+		glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
 
 		m_Window = glfwCreateWindow(m_Data.width, m_Data.height, m_Data.title, NULL, NULL);
 
@@ -50,6 +52,18 @@ namespace casic706 {
 	{
 		glfwSwapBuffers(m_Window);
 		glfwPollEvents();
+	}
+
+	void WindowsWindow::SwapBuffer()
+	{
+		glfwSwapBuffers(m_Window);
+	}
+
+	void WindowsWindow::PollEvent()
+	{
+		glfwPollEvents();
+		
+		glfwSetWindowShouldClose(m_Window, GLFW_FALSE);
 	}
 
 	void WindowsWindow::Shutdown()

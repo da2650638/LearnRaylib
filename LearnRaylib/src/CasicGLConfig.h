@@ -97,5 +97,6 @@ typedef enum {
 #define CASIC_DEFAULT_BATCH_BUFFER_ELEMENTS    8192
 #define CASIC_DEFAULT_BATCH_MAX_TEXTURE_UNITS     4  
 
-#define CASIC_WHITE {255, 255, 255, 255}
-#define CASIC_RED {255, 0, 0, 255}
+#define CASIC_WHITE      {255, 255, 255, 255}
+#define CASIC_RED        {255, 0, 0, 255}
+#define CASIC_VIOLET     { 135, 60, 190, 255 }    // Violet

@@ -33,6 +33,7 @@ namespace casic706 {
 		m_CurrentShaderLocs[CASIC_SHADER_LOC_VERTEX_NORMAL] = CASIC_DEFAULT_SHADER_ATTRIB_LOCATION_NORMAL;
 		m_DefaultBatch = LoadRenderBatch(CASIC_DEFAULT_BATCH_BUFFERS, CASIC_DEFAULT_BATCH_BUFFER_ELEMENTS);
 		m_CurrentShaderLocs[CASIC_SHADER_LOC_VERTEX_NORMAL] = -1;
+		m_CurrentBatch = &m_DefaultBatch;
 		
 		m_Transform = CasicMath::MatrixIdentity();
 		m_Projection = CasicMath::MatrixIdentity();
@@ -356,6 +357,8 @@ namespace casic706 {
 		//--------------------------------------------------------------------------------------------
 		batch.vertexBuffer = (VertexBuffer*)malloc(numBuffers * sizeof(VertexBuffer));
 		for (int i = 0; i < numBuffers; i++){
+			batch.vertexBuffer[i].elementCount = bufferElements;
+
 			batch.vertexBuffer[i].vertices = (float*)malloc(bufferElements * 4 * 3 * sizeof(float));
 			batch.vertexBuffer[i].texCoord = (float*)malloc(bufferElements * 4 * 2 * sizeof(float));
 			batch.vertexBuffer[i].normals = (float*)malloc(bufferElements * 4 * 3 * sizeof(float));
@@ -384,7 +387,7 @@ namespace casic706 {
 				batch.vertexBuffer[i].indices[j + 5] = 4 * k + 3;
 				k++;
 			}
-			vertexCounter = 0;
+			m_VertexCounter = 0;
 		}
 
 		TRACELOG(LOG_INFO, "RLGL: Render batch vertex buffers loaded successfully in RAM (CPU)");
@@ -435,7 +438,7 @@ namespace casic706 {
 		batch.draws = (DrawCall*)malloc(CASIC_DEFAULT_BATCH_DRAWCALLS * sizeof(DrawCall));
 
 		for (int i = 0; i < CASIC_DEFAULT_BATCH_DRAWCALLS; i++) {
-			batch.draws[i].mode = CASIC_LINES;
+			batch.draws[i].mode = CASIC_QUADS;
 			batch.draws[i].vertexCount = 0;
 			batch.draws[i].vertexAlignment = 0;
 			batch.draws[i].textureId = m_DefaultTextureId;
@@ -498,9 +501,19 @@ namespace casic706 {
 		LoadIdentity();
 	}
 
-	void CasicGL::EndDrawing()
+	void CasicGL::EndDrawing(Window* window)
 	{
+		DrawRenderBatchActive();
+		window->SwapBuffer();
 
+		window->time.current = window->GetTime();
+		window->time.draw = window->time.current - window->time.previous;
+		window->time.previous = window->time.current;
+		window->time.frame = window->time.update + window->time.draw;
+
+		window->PollEvent();
+
+		window->time.frameCounter++;
 	}
 
 	void CasicGL::LoadIdentity()
@@ -515,108 +528,159 @@ namespace casic706 {
 
 	void CasicGL::DrawRenderBatch(RenderBatch* batch)
 	{
+		auto& cb = batch->vertexBuffer[batch->currentBuffer];
 		if (m_VertexCounter > 0) {
-			glBindVertexArray(batch->vertexBuffer[batch->currentBuffer].vaoId);
-
-			glBindBuffer(GL_ARRAY_BUFFER, batch->vertexBuffer[batch->currentBuffer].vboId[0]);
-			glBufferSubData(GL_ARRAY_BUFFER, 0, m_VertexCounter * 3 * sizeof(float), batch->vertexBuffer[batch->currentBuffer].vertices);
-
-			glBindBuffer(GL_ARRAY_BUFFER, batch->vertexBuffer[batch->currentBuffer].vboId[1]);
-			glBufferSubData(GL_ARRAY_BUFFER, 0, m_VertexCounter * 2 * sizeof(float), batch->vertexBuffer[batch->currentBuffer].texCoord);
-
-			glBindBuffer(GL_ARRAY_BUFFER, batch->vertexBuffer[batch->currentBuffer].vboId[2]);
-			glBufferSubData(GL_ARRAY_BUFFER, 0, m_VertexCounter * 3 * sizeof(float), batch->vertexBuffer[batch->currentBuffer].normals);
-
-			glBindBuffer(GL_ARRAY_BUFFER, batch->vertexBuffer[batch->currentBuffer].vboId[3]);
-			glBufferSubData(GL_ARRAY_BUFFER, 0, m_VertexCounter * 4 * sizeof(unsigned char), batch->vertexBuffer[batch->currentBuffer].colors);
-
+			glBindVertexArray(cb.vaoId);
+			glBindBuffer(GL_ARRAY_BUFFER, cb.vboId[0]);
+			glBufferSubData(GL_ARRAY_BUFFER, 0, m_VertexCounter * 3 * sizeof(float), cb.vertices);
+			glBindBuffer(GL_ARRAY_BUFFER, cb.vboId[1]);
+			glBufferSubData(GL_ARRAY_BUFFER, 0, m_VertexCounter * 2 * sizeof(float), cb.texCoord);
+			glBindBuffer(GL_ARRAY_BUFFER, cb.vboId[2]);
+			glBufferSubData(GL_ARRAY_BUFFER, 0, m_VertexCounter * 3 * sizeof(float), cb.normals);
+			glBindBuffer(GL_ARRAY_BUFFER, cb.vboId[3]);
+			glBufferSubData(GL_ARRAY_BUFFER, 0, m_VertexCounter * 4 * sizeof(unsigned char), cb.colors);
 			glBindVertexArray(0);
 		}
-
-		// Draw batch vertex buffers
-		//------------------------------------------------------------------------------------------------------------
 		Matrix matProjection = m_Projection;
 		Matrix matModelView = m_ModelView;
 
-		int eyeCount = 1;
-		for (int eye = 0; eye < eyeCount; eye++) {
+		if (m_VertexCounter > 0) {
+			glUseProgram(m_CurrentShaderId);
 			
-			if (m_VertexCounter > 0) {
-				// Set current shader and upload current MVP matrix
-				glUseProgram(m_CurrentShaderId);
-
-				Matrix matMVP = CasicMath::MatrixMultiply(m_ModelView, m_Projection);
-				glUniformMatrix4fv(m_CurrentShaderLocs[CASIC_SHADER_LOC_MATRIX_MVP], 1, false, CasicMath::MatrixToFloatV(matMVP));
-				
-				if (m_CurrentShaderLocs[CASIC_SHADER_LOC_MATRIX_PROJECTION] != -1) {
-					glUniformMatrix4fv(m_CurrentShaderLocs[CASIC_SHADER_LOC_MATRIX_PROJECTION], 1, false, CasicMath::MatrixToFloatV(m_Projection));
-				}
-
-				if (m_CurrentShaderLocs[CASIC_SHADER_LOC_MATRIX_VIEW] != -1) {
-					glUniformMatrix4fv(m_CurrentShaderLocs[CASIC_SHADER_LOC_MATRIX_VIEW], 1, false, CasicMath::MatrixToFloatV(m_ModelView));
-				}
-
-				if (m_CurrentShaderLocs[CASIC_SHADER_LOC_MATRIX_MODEL] != -1) {
-					glUniformMatrix4fv(m_CurrentShaderLocs[CASIC_SHADER_LOC_MATRIX_MODEL], 1, false, CasicMath::MatrixToFloatV(m_Transform));
-				}
-
-				if (m_CurrentShaderLocs[CASIC_SHADER_LOC_MATRIX_NORMAL] != -1) {
-					glUniformMatrix4fv(m_CurrentShaderLocs[CASIC_SHADER_LOC_MATRIX_NORMAL], 1, false, CasicMath::MatrixToFloatV(CasicMath::MatrixTranspose(CasicMath::MatrixInvert(m_Transform))));
-				}
-
-				glBindVertexArray(batch->vertexBuffer[batch->currentBuffer].vaoId);
-
-				glUniform4f(m_CurrentShaderLocs[CASIC_SHADER_LOC_COLOR_DIFFUSE], 1.0f, 1.0f, 1.0f, 1.0f);
-				glUniform1i(m_CurrentShaderLocs[CASIC_SHADER_LOC_MAP_DIFFUSE], 0);
-
-				for (int i = 0; i < CASIC_DEFAULT_BATCH_MAX_TEXTURE_UNITS; i++) {
-					if (m_ActiveTextureId[i] > 0) {
-						glActiveTexture(GL_TEXTURE0 + 1 + i);
-						glBindTexture(GL_TEXTURE_2D, m_ActiveTextureId[i]);
-					}
-				}
-
-				glActiveTexture(GL_TEXTURE0);
-
-				for (int i = 0, vertexOffset = 0; i < batch->drawCounter; i++) {
-					// Bind current draw call texture, activated as GL_TEXTURE0 and Bound to sampler2D texture0 by default
-					glBindTexture(GL_TEXTURE_2D, batch->draws[i].textureId);
-					if ((batch->draws[i].mode == CASIC_LINES) || (batch->draws[i].mode == CASIC_TRIANGLES)) glDrawArrays(batch->draws[i].mode, vertexOffset, batch->draws[i].vertexCount);
-					else {
-						// We need to define the number of indices to be processed: elementCount*6
-						// NOTE: The final parameter tells the GPU the offset in bytes from the
-						// start of the index buffer to the location of the first index to process
-						glDrawElements(GL_TRIANGLES, batch->draws[i].vertexCount / 4 * 6, GL_UNSIGNED_INT, (GLvoid*)(vertexOffset / 4 * 6 * sizeof(GLuint)));
-					}
-
-					vertexOffset += (batch->draws[i].vertexCount + batch->draws[i].vertexAlignment);
-				}
-
-				glBindTexture(GL_TEXTURE_2D, 0);    // Unbind textures
+			Matrix matMVP = CasicMath::MatrixMultiply(matModelView, matProjection);
+			glUniformMatrix4fv(m_CurrentShaderLocs[CASIC_SHADER_LOC_MATRIX_MVP], 1, false, CasicMath::MatrixToFloatV(matMVP));
+			if (m_CurrentShaderLocs[CASIC_SHADER_LOC_MATRIX_PROJECTION] != -1) {
+				glUniformMatrix4fv(m_CurrentShaderLocs[CASIC_SHADER_LOC_MATRIX_PROJECTION], 1, false, CasicMath::MatrixToFloatV(matProjection));
 			}
-		
-			glBindVertexArray(0);
+			if (m_CurrentShaderLocs[CASIC_SHADER_LOC_MATRIX_VIEW] != -1) {
+				glUniformMatrix4fv(m_CurrentShaderLocs[CASIC_SHADER_LOC_MATRIX_VIEW], 1, false, CasicMath::MatrixToFloatV(matModelView));
+			}
+			if (m_CurrentShaderLocs[CASIC_SHADER_LOC_MATRIX_MODEL] != -1) {
+				glUniformMatrix4fv(m_CurrentShaderLocs[CASIC_SHADER_LOC_MATRIX_MODEL], 1, false, CasicMath::MatrixToFloatV(m_Transform));
+			}
+			if (m_CurrentShaderLocs[CASIC_SHADER_LOC_MATRIX_NORMAL] != -1) {
+				Matrix matNormal = CasicMath::MatrixTranspose(CasicMath::MatrixInvert(m_Transform));
+				glUniformMatrix4fv(m_CurrentShaderLocs[CASIC_SHADER_LOC_MATRIX_NORMAL], 1, false, CasicMath::MatrixToFloatV(matNormal));
+			}
+
+			glBindVertexArray(cb.vaoId);
 			
+			glUniform4f(m_CurrentShaderLocs[CASIC_SHADER_LOC_COLOR_DIFFUSE], 1.0f, 1.0f, 1.0f, 1.0f);
+			glUniform1i(m_CurrentShaderLocs[CASIC_SHADER_LOC_MAP_DIFFUSE], 0);	// TODO: 这里是不是应该使用GL_TEXTURE0???
+			
+			for (int i = 0; i < CASIC_DEFAULT_BATCH_MAX_TEXTURE_UNITS; i++) {
+				if (m_ActiveTextureId[i] > 0) {
+					glActiveTexture(GL_TEXTURE0 + 1 + i);
+					glBindTexture(GL_TEXTURE_2D, m_ActiveTextureId[i]);
+				}
+			}
+
+			glActiveTexture(GL_TEXTURE0);
+			
+			for (int i = 0, vertexOffset = 0; i < batch->drawCounter; i++) {
+				glBindTexture(GL_TEXTURE_2D, batch->draws[i].textureId);
+
+				if (batch->draws[i].mode == CASIC_LINES || batch->draws[i].mode == CASIC_TRIANGLES) {
+					glDrawArrays(batch->draws[i].mode, vertexOffset, batch->draws[i].vertexCount);
+				}
+				else {
+					glDrawElements(batch->draws[i].mode, batch->draws[i].vertexCount / 4 * 6, GL_UNSIGNED_INT, (GLvoid*)(vertexOffset / 4 * 6 * sizeof(GLuint)));
+				}
+
+				vertexOffset += (batch->draws[i].vertexCount + batch->draws[i].vertexAlignment);
+			}
+
+			glBindTexture(GL_TEXTURE_2D, 0);
+
+			glBindVertexArray(0);
+
 			glUseProgram(0);
 		}
 
-		m_VertexCounter;
+		m_VertexCounter = 0;
 		batch->currentDepth = -1.0f;
-
 		m_Projection = matProjection;
 		m_ModelView = matModelView;
 
-		// Reset RLGL.currentBatch->draws array
-		for (int i = 0; i < CASIC_DEFAULT_BATCH_DRAWCALLS; i++){
-			batch->draws[i].mode = CASIC_QUADS;
+		for (int i = 0; i < CASIC_DEFAULT_BATCH_DRAWCALLS; i++) {
 			batch->draws[i].vertexCount = 0;
+			batch->draws[i].mode = CASIC_QUADS;
 			batch->draws[i].textureId = m_DefaultTextureId;
+			batch->draws[i].vertexAlignment = 0;
+		}
+
+		for (int i = 0; i < CASIC_DEFAULT_BATCH_MAX_TEXTURE_UNITS; i++) {
+			m_ActiveTextureId[i] = 0;
 		}
 
 		batch->drawCounter = 1;
 
 		batch->currentBuffer++;
 		if (batch->currentBuffer >= batch->bufferCount) batch->currentBuffer = 0;
+	}
+
+	void CasicGL::BeginDrawMode(int mode)
+	{
+		if (m_CurrentBatch->draws[m_CurrentBatch->drawCounter - 1].mode != mode) {
+			if (m_CurrentBatch->draws[m_CurrentBatch->drawCounter - 1].vertexCount > 0) {
+				if (m_CurrentBatch->draws[m_CurrentBatch->drawCounter - 1].mode == CASIC_LINES) {
+					if (m_CurrentBatch->draws[m_CurrentBatch->drawCounter - 1].vertexCount < 4) {
+						m_CurrentBatch->draws[m_CurrentBatch->drawCounter - 1].vertexAlignment = m_CurrentBatch->draws[m_CurrentBatch->drawCounter - 1].vertexCount;
+					}
+					else {
+						m_CurrentBatch->draws[m_CurrentBatch->drawCounter - 1].vertexAlignment = m_CurrentBatch->draws[m_CurrentBatch->drawCounter - 1].vertexCount % 4;
+					}
+				}
+				else if (m_CurrentBatch->draws[m_CurrentBatch->drawCounter - 1].mode == CASIC_TRIANGLES) {
+					if (m_CurrentBatch->draws[m_CurrentBatch->drawCounter - 1].vertexCount < 4) {
+						m_CurrentBatch->draws[m_CurrentBatch->drawCounter - 1].vertexAlignment = 1;
+					}
+					else {
+						m_CurrentBatch->draws[m_CurrentBatch->drawCounter - 1].vertexAlignment = 4 - (m_CurrentBatch->draws[m_CurrentBatch->drawCounter - 1].vertexCount % 4);
+					}
+				}
+				else {
+					m_CurrentBatch->draws[m_CurrentBatch->drawCounter - 1].vertexAlignment = 0;
+				}
+
+				if (!CheckRenderBatchLimit(m_CurrentBatch->draws[m_CurrentBatch->drawCounter - 1].vertexAlignment)) {
+					m_VertexCounter += m_CurrentBatch->draws[m_CurrentBatch->drawCounter - 1].vertexAlignment;
+					m_CurrentBatch->drawCounter++;
+				}
+			}
+
+			if (m_CurrentBatch->drawCounter >= CASIC_DEFAULT_BATCH_DRAWCALLS) {
+				DrawRenderBatch(m_CurrentBatch);
+			}
+
+			m_CurrentBatch->draws[m_CurrentBatch->drawCounter - 1].mode = mode;
+			m_CurrentBatch->draws[m_CurrentBatch->drawCounter - 1].textureId = m_DefaultTextureId;
+			m_CurrentBatch->draws[m_CurrentBatch->drawCounter - 1].vertexCount = 0;
+		}
+	}
+
+	void CasicGL::EndDrawMode()
+	{
+		m_CurrentBatch->currentDepth += (1.0f / 20000.0f);
+	}
+
+	bool CasicGL::CheckRenderBatchLimit(int count)
+	{
+		bool overflow = false;
+
+		if ((m_VertexCounter + count) >= m_CurrentBatch->vertexBuffer[m_CurrentBatch->currentBuffer].elementCount * 4) {
+			overflow = true;
+			
+			int currentMode = m_CurrentBatch->draws[m_CurrentBatch->drawCounter - 1].mode;
+			int currentTexture = m_CurrentBatch->draws[m_CurrentBatch->drawCounter - 1].textureId;
+
+			DrawRenderBatch(m_CurrentBatch);
+
+			m_CurrentBatch->draws[m_CurrentBatch->drawCounter - 1].mode = currentMode;
+			m_CurrentBatch->draws[m_CurrentBatch->drawCounter - 1].textureId = currentTexture;
+		}
+		
+		return overflow;
 	}
 
 	void CasicGL::CasicClearColor(unsigned char r, unsigned char g, unsigned char b, unsigned char a)
@@ -631,6 +695,61 @@ namespace casic706 {
 	void CasicGL::CasicClearScreenBuffers()
 	{
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	}
+
+	void CasicGL::Color4ub(unsigned char r, unsigned char g, unsigned char b, unsigned char a)
+	{
+		m_Color.r = r;
+		m_Color.g = g;
+		m_Color.b = b;
+		m_Color.a = a;
+	}
+
+	void CasicGL::Vertex3f(float x, float y, float z)
+	{
+		if (m_VertexCounter > m_CurrentBatch->vertexBuffer[m_CurrentBatch->currentBuffer].elementCount * 4 - 4) {
+			if ((m_CurrentBatch->draws[m_CurrentBatch->drawCounter - 1].mode == CASIC_LINES) &&
+				(m_CurrentBatch->draws[m_CurrentBatch->drawCounter - 1].vertexCount % 2 == 0)) {
+				CheckRenderBatchLimit(2 + 1);
+			}
+			else if ((m_CurrentBatch->draws[m_CurrentBatch->drawCounter - 1].mode == CASIC_TRIANGLES) &&
+					 (m_CurrentBatch->draws[m_CurrentBatch->drawCounter - 1].vertexCount % 3 == 0)) {
+				CheckRenderBatchLimit(3 + 1);
+			}
+			else if ((m_CurrentBatch->draws[m_CurrentBatch->drawCounter - 1].mode == CASIC_QUADS) &&
+				(m_CurrentBatch->draws[m_CurrentBatch->drawCounter - 1].vertexCount % 4 == 0)) {
+				CheckRenderBatchLimit(4 + 1);
+			}
+		}
+
+		m_CurrentBatch->vertexBuffer[m_CurrentBatch->currentBuffer].vertices[3 * m_VertexCounter + 0] = x;
+		m_CurrentBatch->vertexBuffer[m_CurrentBatch->currentBuffer].vertices[3 * m_VertexCounter + 1] = y;
+		m_CurrentBatch->vertexBuffer[m_CurrentBatch->currentBuffer].vertices[3 * m_VertexCounter + 2] = z;
+
+		m_CurrentBatch->vertexBuffer[m_CurrentBatch->currentBuffer].texCoord[2 * m_VertexCounter + 0] = m_Texcoordx;
+		m_CurrentBatch->vertexBuffer[m_CurrentBatch->currentBuffer].texCoord[2 * m_VertexCounter + 1] = m_Texcoordy;
+
+		m_CurrentBatch->vertexBuffer[m_CurrentBatch->currentBuffer].normals[3 * m_VertexCounter + 0] = m_Normalx;
+		m_CurrentBatch->vertexBuffer[m_CurrentBatch->currentBuffer].normals[3 * m_VertexCounter + 1] = m_Normaly;
+		m_CurrentBatch->vertexBuffer[m_CurrentBatch->currentBuffer].normals[3 * m_VertexCounter + 2] = m_Normalz;
+
+		m_CurrentBatch->vertexBuffer[m_CurrentBatch->currentBuffer].colors[4 * m_VertexCounter + 0] = m_Color.r;
+		m_CurrentBatch->vertexBuffer[m_CurrentBatch->currentBuffer].colors[4 * m_VertexCounter + 1] = m_Color.g;
+		m_CurrentBatch->vertexBuffer[m_CurrentBatch->currentBuffer].colors[4 * m_VertexCounter + 2] = m_Color.b;
+		m_CurrentBatch->vertexBuffer[m_CurrentBatch->currentBuffer].colors[4 * m_VertexCounter + 3] = m_Color.a;
+
+		m_VertexCounter++;
+		m_CurrentBatch->draws[m_CurrentBatch->drawCounter - 1].vertexCount++;
+	}
+
+	void CasicGL::DrawTriangle3D(Vector3 v1, Vector3 v2, Vector3 v3, Color color)
+	{
+		BeginDrawMode(CASIC_TRIANGLES);
+		Color4ub(color.r, color.g, color.b, color.a);
+		Vertex3f(v1.x, v1.y, v1.z);
+		Vertex3f(v2.x, v2.y, v2.z);
+		Vertex3f(v3.x, v3.y, v3.z);
+		EndDrawMode();
 	}
 }
 
